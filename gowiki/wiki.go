@@ -1,11 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 )
+
+// from https://golang.org/doc/articles/wiki/
 
 type Page struct {
 	Title string
@@ -26,10 +28,14 @@ func loadPage(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
+func renderTemplate(w http.ResponseWriter, tempstr string, p *Page) {
+	t, _ := template.ParseFiles(tempstr + ".html")
+	t.Execute(w, p)
+}
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/view/"):] // /view/TestPage => TestPage
 	p, _ := loadPage(title)
-	fmt.Fprintf(w, "<h1>%s</h1><div>%s<div>", p.Title, p.Body)
+	renderTemplate(w, "view", p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,12 +45,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 		p = &Page{Title: title}
 	}
 
-	fmt.Fprintf(w, "<h1>Editing %s</h1>"+
-        "<form action=\"/save/%s\" method=\"POST\">"+
-        "<textarea name=\"body\">%s</textarea><br>"+
-        "<input type=\"submit\" value=\"Save\">"+
-        "</form>",
-        p.Title, p.Title, p.Body)
+	renderTemplate(w, "edit", p)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
