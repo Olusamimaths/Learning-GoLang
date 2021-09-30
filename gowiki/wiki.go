@@ -1,13 +1,19 @@
 package main
 
 import (
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 )
 
 // from https://golang.org/doc/articles/wiki/
+
+var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+
 
 type Page struct {
 	Title string
@@ -17,6 +23,15 @@ type Page struct {
 func (p *Page) save() error {
 	filename := p.Title + ".txt"
 	return ioutil.WriteFile(filename, p.Body, 0600)
+}
+
+func getTitle(w http.ResponseWriter, r *http.Request) (string ,error) {
+	m := validPath.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.NotFound(w, r)
+		return "", errors.New("Invalid page title")
+	}
+	return m[2], nil // The title is the second subexpression
 }
 
 func loadPage(title string) (*Page, error) {
@@ -29,15 +44,10 @@ func loadPage(title string) (*Page, error) {
 }
 
 func renderTemplate(w http.ResponseWriter, tempstr string, p *Page) {
-	t, err := template.ParseFiles(tempstr + ".html")
+	err := templates.ExecuteTemplate(w, tempstr + ".html", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	
-	err = t.Execute(w, p)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 func viewHandler(w http.ResponseWriter, r *http.Request) {
