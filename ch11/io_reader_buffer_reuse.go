@@ -1,8 +1,10 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 )
 
@@ -27,6 +29,37 @@ func countLetters(r io.Reader) (map[string]int, error) {
 			return nil, err
 		}
 	}
+}
+
+// using in a decorator pattern
+func buildGZipReader(filename string) (*gzip.Reader, func(), error) {
+	r, err := os.Open(filename) // os.Open meets the io.Reader interface
+	if err != nil {
+		return nil, nil, err
+	}
+	gr, err := gzip.NewReader(r) // gzip.NewReader also meets the io.Reader interface
+	if err != nil {
+		return nil, nil, err
+	}
+	return gr, func() {
+		gr.Close()
+		r.Close()
+	}, nil
+}
+
+func countInGZip(filename string) (error) {
+	gr, closer, err := buildGZipReader(filename)
+	if err != nil {
+		return err
+	}
+	defer closer()
+	
+	counts, err := countLetters(gr)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	fmt.Println(counts)
+	return nil
 }
 
 func main() {
